@@ -18,8 +18,8 @@ st.set_page_config(
 # Initialize session state for storing data across reruns
 if 'data_timestamp' not in st.session_state:
     st.session_state.data_timestamp = None
-    st.session_state.refresh_rate = 60  # Default refresh in seconds
-    st.session_state.auto_refresh = True
+    st.session_state.refresh_rate = 120  # Default refresh of 2 minutes as requested
+    st.session_state.auto_refresh = False  # Auto-refresh off by default as requested
 
 # App Header
 st.title("🌞 Solana Staking Ecosystem Dashboard")
@@ -32,8 +32,8 @@ with st.sidebar:
     # Network selector
     network = st.selectbox(
         "Solana Network",
-        options=["Devnet", "Testnet", "Mainnet Beta"],
-        index=0  # Default to Devnet for better API availability
+        options=["Mainnet Beta", "Testnet", "Devnet"],
+        index=0  # Default to Mainnet Beta as requested
     )
     
     # Connection Status

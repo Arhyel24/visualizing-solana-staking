@@ -96,7 +96,8 @@ def render_size_distribution(df):
     
     # Calculate distribution by stake size buckets
     if 'stake_bucket' in df.columns:
-        size_distribution = df.groupby('stake_bucket').agg(
+        # Add observed=True to silence the FutureWarning
+        size_distribution = df.groupby('stake_bucket', observed=True).agg(
             validator_count=('nodePubkey', 'count'),
             total_stake=('stakeSOL', 'sum'),
         ).reset_index()
