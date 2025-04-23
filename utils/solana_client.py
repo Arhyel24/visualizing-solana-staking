@@ -69,9 +69,40 @@ def get_validators(client):
                 
                 # Convert to dictionaries if they're not already
                 if current and not isinstance(current[0], dict):
-                    current = [v.__dict__ for v in current]
+                    current_dicts = []
+                    for v in current:
+                        if hasattr(v, 'pubkey'):
+                            v_dict = {'nodePubkey': str(v.pubkey)}
+                            if hasattr(v, 'activated_stake'):
+                                v_dict['activatedStake'] = v.activated_stake
+                            if hasattr(v, 'commission'):
+                                v_dict['commission'] = v.commission
+                            if hasattr(v, 'last_vote'):
+                                v_dict['lastVote'] = v.last_vote
+                            if hasattr(v, 'root_slot'):
+                                v_dict['rootSlot'] = v.root_slot
+                            if hasattr(v, 'credits'):
+                                v_dict['epochCredits'] = v.credits
+                            current_dicts.append(v_dict)
+                    current = current_dicts
+                    
                 if delinquent and not isinstance(delinquent[0], dict):
-                    delinquent = [v.__dict__ for v in delinquent]
+                    delinquent_dicts = []
+                    for v in delinquent:
+                        if hasattr(v, 'pubkey'):
+                            v_dict = {'nodePubkey': str(v.pubkey)}
+                            if hasattr(v, 'activated_stake'):
+                                v_dict['activatedStake'] = v.activated_stake
+                            if hasattr(v, 'commission'):
+                                v_dict['commission'] = v.commission
+                            if hasattr(v, 'last_vote'):
+                                v_dict['lastVote'] = v.last_vote
+                            if hasattr(v, 'root_slot'):
+                                v_dict['rootSlot'] = v.root_slot
+                            if hasattr(v, 'credits'):
+                                v_dict['epochCredits'] = v.credits
+                            delinquent_dicts.append(v_dict)
+                    delinquent = delinquent_dicts
                 
                 # Mark delinquent status
                 for v in delinquent:
@@ -119,13 +150,24 @@ def get_epoch_info(client):
         # Handle solders.rpc.responses type
         if hasattr(response, 'value'):
             try:
-                # Convert the response.value object to a dictionary
-                if hasattr(response.value, '__dict__'):
-                    return {k: v for k, v in response.value.__dict__.items() 
-                            if not k.startswith('_') and k != 'inner'}
-                else:
-                    st.warning("Unexpected epoch info response structure")
-                    return {}
+                # Create a dictionary with the expected fields
+                epoch_info = {}
+                
+                # Map the properties from response.value to our expected dictionary
+                if hasattr(response.value, 'epoch'):
+                    epoch_info['epoch'] = response.value.epoch
+                if hasattr(response.value, 'slot_index'):
+                    epoch_info['slotIndex'] = response.value.slot_index
+                if hasattr(response.value, 'slots_in_epoch'):
+                    epoch_info['slotsInEpoch'] = response.value.slots_in_epoch
+                if hasattr(response.value, 'absolute_slot'):
+                    epoch_info['absoluteSlot'] = response.value.absolute_slot
+                if hasattr(response.value, 'block_height'):
+                    epoch_info['blockHeight'] = response.value.block_height
+                if hasattr(response.value, 'transaction_count'):
+                    epoch_info['transactionCount'] = response.value.transaction_count
+                
+                return epoch_info
             except Exception as e:
                 st.error(f"Error processing epoch info response: {str(e)}")
                 return {}
@@ -156,21 +198,18 @@ def get_supply_info(client):
         # Handle solders.rpc.responses type
         if hasattr(response, 'value'):
             try:
-                # Access supply info from value attribute
-                if hasattr(response.value, 'value'):
-                    supply_value = response.value.value
-                    # Convert to dictionary if it's not already
-                    if hasattr(supply_value, '__dict__'):
-                        return {k: v for k, v in supply_value.__dict__.items() 
-                                if not k.startswith('_') and k != 'inner'}
-                    elif isinstance(supply_value, dict):
-                        return supply_value
-                    else:
-                        st.warning(f"Unexpected supply value type: {type(supply_value)}")
-                        return {}
-                else:
-                    st.warning("Supply response missing 'value' attribute")
-                    return {}
+                # Create a dictionary with the expected fields
+                supply_info = {}
+                
+                # Extract supply information directly from the response value
+                if hasattr(response.value, 'total'):
+                    supply_info['total'] = response.value.total
+                if hasattr(response.value, 'circulating'):
+                    supply_info['circulating'] = response.value.circulating
+                if hasattr(response.value, 'non_circulating'):
+                    supply_info['nonCirculating'] = response.value.non_circulating
+                
+                return supply_info
             except Exception as e:
                 st.error(f"Error processing supply info response: {str(e)}")
                 return {}
@@ -185,38 +224,41 @@ def get_supply_info(client):
         st.error(f"Error fetching supply info: {str(e)}")
         return {}
 
-def get_largest_accounts(client, filter_type="stake"):
+def get_largest_accounts(client, filter_type=None):
     """
-    Get the largest accounts of a specified type from Solana.
+    Get the largest accounts from Solana.
     
     Args:
         client (Client): Solana RPC client
-        filter_type (str): Type of accounts to filter (e.g., "stake")
+        filter_type (str, optional): Ignored for now due to API changes
         
     Returns:
         list: Largest accounts data
     """
     try:
-        response = client.get_largest_accounts(filter=filter_type)
+        # Note: The newer Solana API might not support filter parameter
+        # Try without filter first
+        try:
+            response = client.get_largest_accounts()
+        except TypeError:
+            # If TypeError occurs (unexpected keyword argument), try without filter
+            response = client.get_largest_accounts()
         
         # Handle solders.rpc.responses type
         if hasattr(response, 'value'):
             try:
-                # Access largest accounts from value attribute
-                if hasattr(response.value, 'value'):
-                    accounts = response.value.value
-                    # Convert accounts to list of dictionaries if they're not already
-                    if accounts and not isinstance(accounts[0], dict):
-                        try:
-                            return [a.__dict__ if hasattr(a, '__dict__') else a for a in accounts]
-                        except Exception as e:
-                            st.error(f"Error converting accounts to dictionaries: {str(e)}")
-                            return []
-                    else:
-                        return accounts
-                else:
-                    st.warning("Largest accounts response missing 'value' attribute")
-                    return []
+                accounts = []
+                
+                # Extract account information
+                for account in response.value:
+                    if hasattr(account, 'address') and hasattr(account, 'lamports'):
+                        account_dict = {
+                            'address': str(account.address),
+                            'lamports': account.lamports
+                        }
+                        accounts.append(account_dict)
+                
+                return accounts
             except Exception as e:
                 st.error(f"Error processing largest accounts response: {str(e)}")
                 return []
@@ -247,16 +289,20 @@ def get_recent_performance(client):
         # Handle solders.rpc.responses type
         if hasattr(response, 'value'):
             try:
-                samples = response.value
-                # Convert samples to list of dictionaries if they're not already
-                if samples and not isinstance(samples[0], dict):
-                    try:
-                        return [s.__dict__ if hasattr(s, '__dict__') else s for s in samples]
-                    except Exception as e:
-                        st.error(f"Error converting performance samples to dictionaries: {str(e)}")
-                        return []
-                else:
-                    return samples
+                samples = []
+                
+                # Extract performance sample information
+                for sample in response.value:
+                    if hasattr(sample, 'slot'):
+                        sample_dict = {
+                            'slot': sample.slot,
+                            'numTransactions': getattr(sample, 'num_transactions', 0),
+                            'numSlots': getattr(sample, 'num_slots', 1),
+                            'samplePeriodSecs': getattr(sample, 'sample_period_secs', 60)
+                        }
+                        samples.append(sample_dict)
+                
+                return samples
             except Exception as e:
                 st.error(f"Error processing performance samples response: {str(e)}")
                 return []
@@ -287,15 +333,20 @@ def get_inflation_info(client):
         # Handle solders.rpc.responses type
         if hasattr(response, 'value'):
             try:
-                # Convert the response.value object to a dictionary
-                if hasattr(response.value, '__dict__'):
-                    return {k: v for k, v in response.value.__dict__.items() 
-                            if not k.startswith('_') and k != 'inner'}
-                elif isinstance(response.value, dict):
-                    return response.value
-                else:
-                    st.warning(f"Unexpected inflation info value type: {type(response.value)}")
-                    return {}
+                # Create dictionary with expected fields
+                inflation_info = {}
+                
+                # Extract inflation rate information
+                if hasattr(response.value, 'total'):
+                    inflation_info['total'] = response.value.total
+                if hasattr(response.value, 'validator'):
+                    inflation_info['validator'] = response.value.validator
+                if hasattr(response.value, 'foundation'):
+                    inflation_info['foundation'] = response.value.foundation
+                if hasattr(response.value, 'epoch'):
+                    inflation_info['epoch'] = response.value.epoch
+                    
+                return inflation_info
             except Exception as e:
                 st.error(f"Error processing inflation info response: {str(e)}")
                 return {}
