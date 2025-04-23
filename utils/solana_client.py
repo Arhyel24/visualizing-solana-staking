@@ -226,52 +226,16 @@ def get_supply_info(client):
 
 def get_largest_accounts(client, filter_type=None):
     """
-    Get the largest accounts from Solana.
+    This method is disabled due to API compatibility issues.
     
     Args:
         client (Client): Solana RPC client
-        filter_type (str, optional): Ignored for now due to API changes
+        filter_type (str, optional): Ignored
         
     Returns:
-        list: Largest accounts data
+        list: Empty list
     """
-    try:
-        # Note: The newer Solana API might not support filter parameter
-        # Try without filter first
-        try:
-            response = client.get_largest_accounts()
-        except TypeError:
-            # If TypeError occurs (unexpected keyword argument), try without filter
-            response = client.get_largest_accounts()
-        
-        # Handle solders.rpc.responses type
-        if hasattr(response, 'value'):
-            try:
-                accounts = []
-                
-                # Extract account information
-                for account in response.value:
-                    if hasattr(account, 'address') and hasattr(account, 'lamports'):
-                        account_dict = {
-                            'address': str(account.address),
-                            'lamports': account.lamports
-                        }
-                        accounts.append(account_dict)
-                
-                return accounts
-            except Exception as e:
-                st.error(f"Error processing largest accounts response: {str(e)}")
-                return []
-                
-        # Handle dictionary response type
-        elif isinstance(response, dict) and "result" in response:
-            return response["result"]["value"]
-        else:
-            st.warning(f"Unexpected response format from get_largest_accounts: {type(response)}")
-            return []
-    except Exception as e:
-        st.error(f"Error fetching largest accounts: {str(e)}")
-        return []
+    return []  # Returning an empty list to avoid errors
 
 def get_recent_performance(client):
     """

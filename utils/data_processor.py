@@ -23,7 +23,8 @@ def cache_data(_client, network):
     validators = get_validators(_client)
     epoch_info = get_epoch_info(_client)
     supply_info = get_supply_info(_client)
-    largest_stake_accounts = get_largest_accounts(_client, filter_type="stake")
+    # Skip largest accounts since it's causing issues with the API
+    largest_stake_accounts = []
     performance_samples = get_recent_performance(_client)
     inflation_info = get_inflation_info(_client)
     
