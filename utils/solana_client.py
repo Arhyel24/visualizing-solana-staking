@@ -91,37 +91,43 @@ def get_validators(client):
                 if current and not isinstance(current[0], dict):
                     current_dicts = []
                     for v in current:
-                        if hasattr(v, 'pubkey'):
-                            v_dict = {'nodePubkey': str(v.pubkey)}
-                            if hasattr(v, 'activated_stake'):
-                                v_dict['activatedStake'] = v.activated_stake
-                            if hasattr(v, 'commission'):
-                                v_dict['commission'] = v.commission
-                            if hasattr(v, 'last_vote'):
-                                v_dict['lastVote'] = v.last_vote
-                            if hasattr(v, 'root_slot'):
-                                v_dict['rootSlot'] = v.root_slot
-                            if hasattr(v, 'credits'):
-                                v_dict['epochCredits'] = v.credits
-                            current_dicts.append(v_dict)
+                        # RpcVoteAccountInfo structure format based on testing
+                        v_dict = {}
+                        # Node/Vote pubkeys
+                        v_dict['nodePubkey'] = str(v.node_pubkey) if hasattr(v, 'node_pubkey') else ''
+                        v_dict['votePubkey'] = str(v.vote_pubkey) if hasattr(v, 'vote_pubkey') else ''
+                        # Stake and commission
+                        v_dict['activatedStake'] = v.activated_stake if hasattr(v, 'activated_stake') else 0
+                        v_dict['commission'] = v.commission if hasattr(v, 'commission') else 0
+                        # Vote info
+                        v_dict['lastVote'] = v.last_vote if hasattr(v, 'last_vote') else 0
+                        v_dict['rootSlot'] = v.root_slot if hasattr(v, 'root_slot') else 0
+                        # Epoch credits and status
+                        v_dict['epochCredits'] = v.epoch_credits if hasattr(v, 'epoch_credits') else []
+                        v_dict['epochVoteAccount'] = v.epoch_vote_account if hasattr(v, 'epoch_vote_account') else False
+                            
+                        current_dicts.append(v_dict)
                     current = current_dicts
                     
                 if delinquent and not isinstance(delinquent[0], dict):
                     delinquent_dicts = []
                     for v in delinquent:
-                        if hasattr(v, 'pubkey'):
-                            v_dict = {'nodePubkey': str(v.pubkey)}
-                            if hasattr(v, 'activated_stake'):
-                                v_dict['activatedStake'] = v.activated_stake
-                            if hasattr(v, 'commission'):
-                                v_dict['commission'] = v.commission
-                            if hasattr(v, 'last_vote'):
-                                v_dict['lastVote'] = v.last_vote
-                            if hasattr(v, 'root_slot'):
-                                v_dict['rootSlot'] = v.root_slot
-                            if hasattr(v, 'credits'):
-                                v_dict['epochCredits'] = v.credits
-                            delinquent_dicts.append(v_dict)
+                        # RpcVoteAccountInfo structure format based on testing
+                        v_dict = {}
+                        # Node/Vote pubkeys
+                        v_dict['nodePubkey'] = str(v.node_pubkey) if hasattr(v, 'node_pubkey') else ''
+                        v_dict['votePubkey'] = str(v.vote_pubkey) if hasattr(v, 'vote_pubkey') else ''
+                        # Stake and commission
+                        v_dict['activatedStake'] = v.activated_stake if hasattr(v, 'activated_stake') else 0
+                        v_dict['commission'] = v.commission if hasattr(v, 'commission') else 0
+                        # Vote info
+                        v_dict['lastVote'] = v.last_vote if hasattr(v, 'last_vote') else 0
+                        v_dict['rootSlot'] = v.root_slot if hasattr(v, 'root_slot') else 0
+                        # Epoch credits and status
+                        v_dict['epochCredits'] = v.epoch_credits if hasattr(v, 'epoch_credits') else []
+                        v_dict['epochVoteAccount'] = v.epoch_vote_account if hasattr(v, 'epoch_vote_account') else False
+                            
+                        delinquent_dicts.append(v_dict)
                     delinquent = delinquent_dicts
                 
                 # Mark delinquent status
