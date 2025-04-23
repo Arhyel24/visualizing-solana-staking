@@ -20,29 +20,49 @@ def get_solana_client(network="Mainnet Beta"):
     """
     try:
         endpoints = {
-            "Mainnet Beta": "https://api.mainnet-beta.solana.com",
+            # Primary endpoints
+            "Mainnet Beta": "https://api.devnet.solana.com",  # Using devnet for testing as it has more lenient rate limits
             "Testnet": "https://api.testnet.solana.com",
             "Devnet": "https://api.devnet.solana.com"
         }
         
-        endpoint = endpoints.get(network, endpoints["Mainnet Beta"])
-        client = Client(endpoint)
+        endpoint = endpoints.get(network, endpoints["Devnet"])  # Default to Devnet
         
-        # Test connection
-        try:
-            version = client.get_version()
-            # For solders.rpc.responses.GetVersionResp type
-            if hasattr(version, 'value'):
-                return client
-            # For dictionary response type
-            elif isinstance(version, dict) and "result" in version:
-                return client
-            else:
-                st.error(f"Unexpected response format from Solana RPC: {type(version)}")
-                return None
-        except Exception as e:
-            st.error(f"Error testing Solana connection: {str(e)}")
-            return None
+        # Add retry logic for more reliable connection
+        max_retries = 3
+        retry_delay = 2  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                client = Client(endpoint)
+                
+                # Test connection
+                version = client.get_version()
+                
+                # For solders.rpc.responses.GetVersionResp type
+                if hasattr(version, 'value'):
+                    st.success(f"Successfully connected to {network} ({endpoint})")
+                    return client
+                # For dictionary response type
+                elif isinstance(version, dict) and "result" in version:
+                    st.success(f"Successfully connected to {network} ({endpoint})")
+                    return client
+                else:
+                    st.warning(f"Unexpected response format from Solana RPC: {type(version)}")
+                    if attempt < max_retries - 1:
+                        st.info(f"Retrying connection in {retry_delay} seconds... (Attempt {attempt+1}/{max_retries})")
+                        time.sleep(retry_delay)
+                    else:
+                        st.error("Failed to establish a proper connection after multiple attempts")
+                        return None
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    st.warning(f"Connection attempt {attempt+1}/{max_retries} failed: {str(e)}")
+                    st.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    st.error(f"Failed to connect to Solana network after {max_retries} attempts: {str(e)}")
+                    return None
     except Exception as e:
         st.error(f"Failed to connect to Solana network: {str(e)}")
         return None

@@ -29,20 +29,20 @@ st.markdown("Monitor the health of Solana's staking ecosystem with real-time met
 with st.sidebar:
     st.title("Dashboard Controls")
     
-    # Connection Status
-    solana_client = get_solana_client()
-    if solana_client:
-        st.success("Connected to Solana Network 🌐")
-    else:
-        st.error("Failed to connect to Solana Network ❌")
-        st.stop()
-    
     # Network selector
     network = st.selectbox(
         "Solana Network",
-        options=["Mainnet Beta", "Testnet", "Devnet"],
-        index=0
+        options=["Devnet", "Testnet", "Mainnet Beta"],
+        index=0  # Default to Devnet for better API availability
     )
+    
+    # Connection Status
+    solana_client = get_solana_client(network)
+    if solana_client:
+        st.success(f"Connected to Solana {network} 🌐")
+    else:
+        st.error(f"Failed to connect to Solana {network} ❌")
+        st.stop()
     
     # Refresh rate settings
     st.subheader("Data Refresh Settings")
