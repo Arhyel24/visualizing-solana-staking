@@ -29,11 +29,20 @@ def get_solana_client(network="Mainnet Beta"):
         client = Client(endpoint)
         
         # Test connection
-        version = client.get_version()
-        if not version or "result" not in version:
+        try:
+            version = client.get_version()
+            # For solders.rpc.responses.GetVersionResp type
+            if hasattr(version, 'value'):
+                return client
+            # For dictionary response type
+            elif isinstance(version, dict) and "result" in version:
+                return client
+            else:
+                st.error(f"Unexpected response format from Solana RPC: {type(version)}")
+                return None
+        except Exception as e:
+            st.error(f"Error testing Solana connection: {str(e)}")
             return None
-            
-        return client
     except Exception as e:
         st.error(f"Failed to connect to Solana network: {str(e)}")
         return None
@@ -50,10 +59,37 @@ def get_validators(client):
     """
     try:
         response = client.get_vote_accounts()
-        if "result" in response:
+        
+        # Handle solders.rpc.responses type
+        if hasattr(response, 'value'):
+            try:
+                # Access vote accounts from value attribute
+                current = getattr(response.value, 'current', [])
+                delinquent = getattr(response.value, 'delinquent', [])
+                
+                # Convert to dictionaries if they're not already
+                if current and not isinstance(current[0], dict):
+                    current = [v.__dict__ for v in current]
+                if delinquent and not isinstance(delinquent[0], dict):
+                    delinquent = [v.__dict__ for v in delinquent]
+                
+                # Mark delinquent status
+                for v in delinquent:
+                    v["delinquent"] = True
+                for v in current:
+                    v["delinquent"] = False
+                    
+                return current + delinquent
+            except Exception as e:
+                st.error(f"Error processing validators response: {str(e)}")
+                return []
+                
+        # Handle dictionary response type
+        elif isinstance(response, dict) and "result" in response:
             # Combine current and delinquent validators
             current = response["result"]["current"]
             delinquent = response["result"]["delinquent"]
+            
             for v in delinquent:
                 v["delinquent"] = True
             for v in current:
@@ -61,7 +97,7 @@ def get_validators(client):
                 
             return current + delinquent
         else:
-            st.warning("Failed to retrieve validator data")
+            st.warning(f"Unexpected response format from get_vote_accounts: {type(response)}")
             return []
     except Exception as e:
         st.error(f"Error fetching validators: {str(e)}")
@@ -79,10 +115,26 @@ def get_epoch_info(client):
     """
     try:
         response = client.get_epoch_info()
-        if "result" in response:
+        
+        # Handle solders.rpc.responses type
+        if hasattr(response, 'value'):
+            try:
+                # Convert the response.value object to a dictionary
+                if hasattr(response.value, '__dict__'):
+                    return {k: v for k, v in response.value.__dict__.items() 
+                            if not k.startswith('_') and k != 'inner'}
+                else:
+                    st.warning("Unexpected epoch info response structure")
+                    return {}
+            except Exception as e:
+                st.error(f"Error processing epoch info response: {str(e)}")
+                return {}
+        
+        # Handle dictionary response type
+        elif isinstance(response, dict) and "result" in response:
             return response["result"]
         else:
-            st.warning("Failed to retrieve epoch information")
+            st.warning(f"Unexpected response format from get_epoch_info: {type(response)}")
             return {}
     except Exception as e:
         st.error(f"Error fetching epoch info: {str(e)}")
@@ -100,10 +152,34 @@ def get_supply_info(client):
     """
     try:
         response = client.get_supply()
-        if "result" in response:
+        
+        # Handle solders.rpc.responses type
+        if hasattr(response, 'value'):
+            try:
+                # Access supply info from value attribute
+                if hasattr(response.value, 'value'):
+                    supply_value = response.value.value
+                    # Convert to dictionary if it's not already
+                    if hasattr(supply_value, '__dict__'):
+                        return {k: v for k, v in supply_value.__dict__.items() 
+                                if not k.startswith('_') and k != 'inner'}
+                    elif isinstance(supply_value, dict):
+                        return supply_value
+                    else:
+                        st.warning(f"Unexpected supply value type: {type(supply_value)}")
+                        return {}
+                else:
+                    st.warning("Supply response missing 'value' attribute")
+                    return {}
+            except Exception as e:
+                st.error(f"Error processing supply info response: {str(e)}")
+                return {}
+                
+        # Handle dictionary response type
+        elif isinstance(response, dict) and "result" in response:
             return response["result"]["value"]
         else:
-            st.warning("Failed to retrieve supply information")
+            st.warning(f"Unexpected response format from get_supply: {type(response)}")
             return {}
     except Exception as e:
         st.error(f"Error fetching supply info: {str(e)}")
@@ -122,10 +198,34 @@ def get_largest_accounts(client, filter_type="stake"):
     """
     try:
         response = client.get_largest_accounts(filter=filter_type)
-        if "result" in response:
+        
+        # Handle solders.rpc.responses type
+        if hasattr(response, 'value'):
+            try:
+                # Access largest accounts from value attribute
+                if hasattr(response.value, 'value'):
+                    accounts = response.value.value
+                    # Convert accounts to list of dictionaries if they're not already
+                    if accounts and not isinstance(accounts[0], dict):
+                        try:
+                            return [a.__dict__ if hasattr(a, '__dict__') else a for a in accounts]
+                        except Exception as e:
+                            st.error(f"Error converting accounts to dictionaries: {str(e)}")
+                            return []
+                    else:
+                        return accounts
+                else:
+                    st.warning("Largest accounts response missing 'value' attribute")
+                    return []
+            except Exception as e:
+                st.error(f"Error processing largest accounts response: {str(e)}")
+                return []
+                
+        # Handle dictionary response type
+        elif isinstance(response, dict) and "result" in response:
             return response["result"]["value"]
         else:
-            st.warning(f"Failed to retrieve largest {filter_type} accounts")
+            st.warning(f"Unexpected response format from get_largest_accounts: {type(response)}")
             return []
     except Exception as e:
         st.error(f"Error fetching largest accounts: {str(e)}")
@@ -143,10 +243,29 @@ def get_recent_performance(client):
     """
     try:
         response = client.get_recent_performance_samples(limit=60)  # Last 60 samples
-        if "result" in response:
+        
+        # Handle solders.rpc.responses type
+        if hasattr(response, 'value'):
+            try:
+                samples = response.value
+                # Convert samples to list of dictionaries if they're not already
+                if samples and not isinstance(samples[0], dict):
+                    try:
+                        return [s.__dict__ if hasattr(s, '__dict__') else s for s in samples]
+                    except Exception as e:
+                        st.error(f"Error converting performance samples to dictionaries: {str(e)}")
+                        return []
+                else:
+                    return samples
+            except Exception as e:
+                st.error(f"Error processing performance samples response: {str(e)}")
+                return []
+                
+        # Handle dictionary response type
+        elif isinstance(response, dict) and "result" in response:
             return response["result"]
         else:
-            st.warning("Failed to retrieve performance samples")
+            st.warning(f"Unexpected response format from get_recent_performance_samples: {type(response)}")
             return []
     except Exception as e:
         st.error(f"Error fetching performance samples: {str(e)}")
@@ -164,10 +283,28 @@ def get_inflation_info(client):
     """
     try:
         response = client.get_inflation_rate()
-        if "result" in response:
+        
+        # Handle solders.rpc.responses type
+        if hasattr(response, 'value'):
+            try:
+                # Convert the response.value object to a dictionary
+                if hasattr(response.value, '__dict__'):
+                    return {k: v for k, v in response.value.__dict__.items() 
+                            if not k.startswith('_') and k != 'inner'}
+                elif isinstance(response.value, dict):
+                    return response.value
+                else:
+                    st.warning(f"Unexpected inflation info value type: {type(response.value)}")
+                    return {}
+            except Exception as e:
+                st.error(f"Error processing inflation info response: {str(e)}")
+                return {}
+                
+        # Handle dictionary response type
+        elif isinstance(response, dict) and "result" in response:
             return response["result"]
         else:
-            st.warning("Failed to retrieve inflation information")
+            st.warning(f"Unexpected response format from get_inflation_rate: {type(response)}")
             return {}
     except Exception as e:
         st.error(f"Error fetching inflation info: {str(e)}")

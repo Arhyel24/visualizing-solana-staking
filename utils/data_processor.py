@@ -8,24 +8,24 @@ from utils.solana_client import (
 )
 
 @st.cache_data(ttl=60)  # Cache for 60 seconds
-def cache_data(client, network):
+def cache_data(_client, network):
     """
     Fetch and cache all necessary data from Solana blockchain
     
     Args:
-        client: Solana RPC client
+        _client: Solana RPC client (underscore prefix to prevent hashing)
         network: Network name for reference
         
     Returns:
         None (data is cached in session state)
     """
     # Fetch basic network information
-    validators = get_validators(client)
-    epoch_info = get_epoch_info(client)
-    supply_info = get_supply_info(client)
-    largest_stake_accounts = get_largest_accounts(client, filter_type="stake")
-    performance_samples = get_recent_performance(client)
-    inflation_info = get_inflation_info(client)
+    validators = get_validators(_client)
+    epoch_info = get_epoch_info(_client)
+    supply_info = get_supply_info(_client)
+    largest_stake_accounts = get_largest_accounts(_client, filter_type="stake")
+    performance_samples = get_recent_performance(_client)
+    inflation_info = get_inflation_info(_client)
     
     # Process and store the data
     st.session_state.validators_df = process_validators_data(validators)
