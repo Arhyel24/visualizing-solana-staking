@@ -206,7 +206,8 @@ def render_commission_analysis(df):
         labels=['0-1%', '1-5%', '5-10%', '10-20%', '20-50%', '50-100%']
     )
     
-    commission_stats = df.groupby(commission_buckets).agg(
+    # Add observed=True to silence the FutureWarning
+    commission_stats = df.groupby(commission_buckets, observed=True).agg(
         validator_count=('Validator', 'count'),
         total_stake=('Stake (SOL)', 'sum'),
         avg_stake=('Stake (SOL)', 'mean')

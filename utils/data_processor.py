@@ -58,26 +58,34 @@ def process_validators_data(validators):
     if 'activatedStake' in df.columns:
         df['stakeSOL'] = df['activatedStake'].astype(float) / 1_000_000_000
     
-    # Calculate vote success rate
-    if 'epochVoteAccount' in df.columns and 'commission' in df.columns:
-        # Calculate metrics
-        df['voteSuccessRate'] = 0
-        for idx, row in df.iterrows():
-            if row.get('epochCredits'):
-                # Get the most recent epoch credits
-                try:
-                    # Extract most recent epoch credits (last item in list)
-                    recent_credits = row['epochCredits'][-1] if row['epochCredits'] else [0, 0, 0]
-                    # Calculate vote success rate
-                    prev_credits = recent_credits[1]
-                    current_credits = recent_credits[2]
+    # Calculate vote success rate - Initialize as float to avoid dtype warning
+    df['voteSuccessRate'] = 0.0
+    
+    for idx, row in df.iterrows():
+        # Check if epochCredits is present and is a list/array
+        if isinstance(row.get('epochCredits'), (list, tuple)) and len(row.get('epochCredits', [])) > 0:
+            try:
+                # Extract most recent epoch credits (last item in list)
+                recent_credits = row['epochCredits'][-1]
+                
+                # Check if the format is what we expect (a tuple/list with at least 3 elements)
+                if isinstance(recent_credits, (list, tuple)) and len(recent_credits) >= 3:
+                    # Calculate vote success rate from epoch credits
+                    prev_credits = float(recent_credits[1])
+                    current_credits = float(recent_credits[2])
                     
                     if prev_credits > 0:
-                        df.at[idx, 'voteSuccessRate'] = (current_credits - prev_credits) / prev_credits
+                        # Avoid division by zero and set as float
+                        df.loc[idx, 'voteSuccessRate'] = (current_credits - prev_credits) / prev_credits
                     else:
-                        df.at[idx, 'voteSuccessRate'] = 0
-                except (IndexError, TypeError):
-                    df.at[idx, 'voteSuccessRate'] = 0
+                        df.loc[idx, 'voteSuccessRate'] = 0.0
+                else:
+                    df.loc[idx, 'voteSuccessRate'] = 0.0
+            except (IndexError, TypeError, ValueError) as e:
+                # Print the error and the row data for debugging
+                print(f"Error processing vote success rate: {e}")
+                print(f"EpochCredits data: {row.get('epochCredits')}")
+                df.loc[idx, 'voteSuccessRate'] = 0.0
     
     # Sort by stake amount descending
     if 'stakeSOL' in df.columns:
@@ -206,18 +214,26 @@ def get_validator_performance_data():
     
     # Select and rename relevant columns for performance analysis
     if 'nodePubkey' in df.columns and 'stakeSOL' in df.columns and 'commission' in df.columns:
-        perf_df = df[['nodePubkey', 'stakeSOL', 'commission', 'delinquent']]
+        # Create a new dataframe with selected columns to avoid SettingWithCopyWarning
+        selected_columns = ['nodePubkey', 'stakeSOL', 'commission', 'delinquent']
         if 'voteSuccessRate' in df.columns:
-            perf_df['voteSuccessRate'] = df['voteSuccessRate']
-        else:
-            perf_df['voteSuccessRate'] = 0
+            selected_columns.append('voteSuccessRate')
+            
+        # Create a fresh copy of the selected columns
+        perf_df = df[selected_columns].copy()
         
-        perf_df.rename(columns={
+        # Add voteSuccessRate if it wasn't in the original dataframe
+        if 'voteSuccessRate' not in df.columns:
+            perf_df['voteSuccessRate'] = 0.0
+        
+        # Rename columns using a new dataframe to avoid warnings
+        column_mapping = {
             'nodePubkey': 'Validator',
             'stakeSOL': 'Stake (SOL)',
             'commission': 'Commission (%)',
             'voteSuccessRate': 'Vote Success Rate'
-        }, inplace=True)
+        }
+        perf_df = perf_df.rename(columns=column_mapping)
         
         # Sort by stake amount
         perf_df = perf_df.sort_values('Stake (SOL)', ascending=False)
